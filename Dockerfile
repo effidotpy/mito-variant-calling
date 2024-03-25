@@ -18,10 +18,14 @@ RUN cd /app/bwa-0.7.17 && sed -i 's/^const uint8_t/extern const uint8_t/g' rle.h
 RUN mkdir /references && wget -P /references https://storage.googleapis.com/genomics-public-data/references/hg38/v0/chrM/Homo_sapiens_assembly38.chrM.fasta \
     https://storage.googleapis.com/genomics-public-data/references/hg38/v0/chrM/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta
 
+RUN wget -P /references https://storage.googleapis.com/genomics-public-data/references/hg38/v0/chrM/ShiftBack.chain  \
+    https://storage.googleapis.com/genomics-public-data/references/hg38/v0/chrM/blacklist_sites.hg38.chrM.bed
+
 # Prepare references
 RUN bwa index /references/Homo_sapiens_assembly38.chrM.fasta \
-    && bwa index /references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta \
+    && bwa index /references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta
 RUN samtools faidx /references/Homo_sapiens_assembly38.chrM.fasta \
-    samtools faidx /references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta
+    && samtools faidx /references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta
 RUN java -jar /app/picard.jar CreateSequenceDictionary -R /references/Homo_sapiens_assembly38.chrM.fasta  \
     && java -jar /app/picard.jar CreateSequenceDictionary -R /references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta
+RUN gatk IndexFeatureFile -I /references/blacklist_sites.hg38.chrM.bed
