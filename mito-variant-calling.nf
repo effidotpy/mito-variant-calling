@@ -12,6 +12,23 @@ log.info """\
     .stripIndent()
 
 
+process ADD_READGROUP {
+    tag "Adding sample information to ${bam_file} readgroup"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(bam_file)
+
+    output:
+    tuple val(meta), path("readgroup.bam")
+
+    script:
+    """
+    samtools addreplacerg -r '@RG\tID:${meta.sample_id}_${meta.source}\tSM:${meta.sample_id}_${meta.source}' \\
+    ${bam_file} -o readgroup.bam
+    """
+}
+
 process NAME_SORT {
     tag "Sorting reads in $bam_file by name"
     //publishDir params.outdir, mode: 'copy'
@@ -20,11 +37,11 @@ process NAME_SORT {
     tuple val(meta), path(bam_file)
 
     output:
-    tuple val(meta), path("${meta.sample_id}_namesort.bam")
+    tuple val(meta), path("namesort.bam")
 
     script:
     """
-    java -jar /app/picard.jar SortSam -I ${bam_file} -O ${meta.sample_id}_namesort.bam -SO queryname --CREATE_INDEX true
+    java -jar /app/picard.jar SortSam -I ${bam_file} -O namesort.bam -SO queryname --CREATE_INDEX true
     """
 }
 
@@ -216,7 +233,8 @@ workflow {
         }
         | set { samples }
 
-    sort_bam_ch = NAME_SORT(samples)
+    readgroup_ch = ADD_READGROUP(samples)
+    sort_bam_ch = NAME_SORT(readgroup_ch)
     fix_pair_ch = FIX_PAIRING(sort_bam_ch)
     rmv_singlt_ch = REMOVE_SINGLETONS(fix_pair_ch)
     revert_bam_ch = REVERT_BAM(rmv_singlt_ch)
