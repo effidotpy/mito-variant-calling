@@ -2,6 +2,8 @@ params.samplesheet = "$projectDir/data/samplesheet_dev.tsv"
 params.outdir = "$projectDir/results"
 params.chrM_fasta = "/references/Homo_sapiens_assembly38.chrM.fasta"
 params.chrM_shift_fasta = "/references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta"
+params.shiftback_chain = "/references/ShiftBack.chain"
+params.blacklist_sites = "/references/blacklist_sites.hg38.chrM.bed"
 
 
 log.info """\
@@ -223,6 +225,158 @@ process SORT_BAM_SHIFT {
     """
 }
 
+process VAR_CALLING {
+    tag "Calling variants in $bam_file"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(bam_file)
+    val (reference_fasta)
+
+    output:
+    tuple val(meta), path("mutect2_raw.vcf")
+    path("mutect2_raw.vcf.stats")
+
+    script:
+    """
+    gatk Mutect2 -I ${bam_file} -O mutect2_raw.vcf --reference ${reference_fasta} -L chrM:576-16024 \\
+    --read-filter MateOnSameContigOrNoMappedMateReadFilter --read-filter MateUnmappedAndUnmappedReadFilter \\
+    --annotation StrandBiasBySample --max-reads-per-alignment-start 0 --max-mnp-distance 0 --mitochondria-mode
+    """
+}
+
+process VAR_CALLING_SHIFT {
+    tag "Calling variants in $bam_file"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(bam_file)
+    val (reference_fasta)
+
+    output:
+    tuple val(meta), path("mutect2_shift_raw.vcf")
+    path("mutect2_shift_raw.vcf.stats")
+
+    script:
+    """
+    gatk Mutect2 -I ${bam_file} -O mutect2_shift_raw.vcf --reference ${reference_fasta} -L chrM:8025-9144 \\
+    --read-filter MateOnSameContigOrNoMappedMateReadFilter --read-filter MateUnmappedAndUnmappedReadFilter \\
+    --annotation StrandBiasBySample --max-reads-per-alignment-start 0 --max-mnp-distance 0 --mitochondria-mode
+    """
+}
+
+process LIFTOVER {
+    tag "Adjusting positions in $vcf_file"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    path (vcf_stats)
+    val (reference_fasta)
+    val (shiftback_chain)
+
+    output:
+    tuple val(meta), path("mutect2_shiftback.vcf")
+
+    script:
+    """
+    java -jar /app/picard.jar LiftoverVcf -I ${vcf_file} -O mutect2_shiftback.vcf -C ${shiftback_chain} -R ${reference_fasta} \\
+    --REJECT rejected.vcf
+    """
+}
+
+process MERGE_VCFS {
+    tag "Merging VCFs ${vcf_file} and ${vcf_file_shift}"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    path (vcf_stats)
+    tuple val(meta_shift), path(vcf_file_shift)
+
+    output:
+    tuple val(meta), path("merged.vcf")
+
+    script:
+    """
+    java -jar /app/picard.jar MergeVcfs -I ${vcf_file} -I ${vcf_file_shift} -O merged.vcf
+    """
+}
+
+process MERGE_STATS {
+    tag "Merging stats ${vcf_stats} and ${vcf_stats_shift}"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    path (vcf_stats)
+    tuple val(meta_shift), path(vcf_file_shift)
+    path (vcf_stats_shift)
+
+    output:
+    tuple val(meta), path("merged.vcf.stats")
+
+    script:
+    """
+    gatk MergeMutectStats --stats ${vcf_stats} --stats ${vcf_stats_shift} -O merged.vcf.stats
+    """
+}
+
+process FILTER_MUTECT {
+    tag "Filtering calls in ${vcf_file}"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    tuple val(meta), path(stats_file)
+    val (reference_fasta)
+
+    output:
+    tuple val(meta), path("filtered.vcf")
+
+    script:
+    """
+    gatk FilterMutectCalls -V ${vcf_file} --stats ${stats_file} -O filtered.vcf -R ${reference_fasta} \\
+    --mitochondria-mode
+    """
+}
+
+process BLACKLIST_SITES {
+    tag "Annotating blacklisted sites in ${vcf_file}"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    val (blacklist)
+
+    output:
+    tuple val(meta), path("blacklisted.vcf")
+
+    script:
+    """
+    gatk VariantFiltration -V ${vcf_file} -O blacklisted.vcf --mask ${blacklist} --mask-name blacklisted
+    """
+}
+
+process NORMALIZE_CALLS {
+    tag "Normalizing variants in ${vcf_file}"
+    //publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    val (reference_fasta)
+
+    output:
+    tuple val(meta), path("normalized.vcf")
+
+    script:
+    """
+    gatk LeftAlignAndTrimVariants -V ${vcf_file} -R ${reference_fasta} --split-multi-allelics --dont-trim-alleles \\
+    --keep-original-ac -O normalized.vcf
+    """
+}
+
+
 workflow {
     Channel
         .fromPath(params.samplesheet)
@@ -245,5 +399,14 @@ workflow {
     merged_chrM_shift_ch = MERGE_BAMS_SHIFT(revert_bam_ch, bam_chrM_shift_ch, params.chrM_shift_fasta)
     sorted_ch = SORT_BAM(merged_chrM_ch)
     sorted_shift_ch = SORT_BAM_SHIFT(merged_chrM_shift_ch)
+    var_ch = VAR_CALLING(sorted_ch, params.chrM_fasta)
+    var_shift_ch = VAR_CALLING_SHIFT(sorted_shift_ch, params.chrM_shift_fasta)
+    var_shiftback_ch = LIFTOVER(var_shift_ch, params.chrM_fasta, params.shiftback_chain)
+    merged_vcf_ch = MERGE_VCFS(var_ch, var_shiftback_ch)
+    merged_stats_ch = MERGE_STATS(var_ch, var_shift_ch)
+    filter_mutect_ch = FILTER_MUTECT(merged_vcf_ch, merged_stats_ch, params.chrM_fasta)
+    blacklisted_ch = BLACKLIST_SITES(filter_mutect_ch, params.blacklist_sites)
+    normalized_ch = NORMALIZE_CALLS(blacklisted_ch, params.chrM_fasta)
+
 }
 
