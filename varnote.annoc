@@ -1,0 +1,4 @@
+@GnomadMitochondrial
+fields=[INFO]
+info_fields=[filters,hap_defining_variant,pon_mt_trna_prediction,pon_ml_probability_of_pathogenicity,mitotip_score,mitotip_trna_prediction,vep,excluded_AC,AN,AC_hom,AC_het,dp_mean,mq_mean,tlod_mean,AF_hom,AF_het,max_hl,pop_AN,pop_AC_het,pop_AC_hom,pop_AF_het,pop_AF_hom]
+out_names=[filters:filters,hap_defining_variant:hap_defining_variant,pon_mt_trna_prediction:pon_mt_trna_prediction,pon_ml_probability_of_pathogenicity:pon_ml_probability_of_pathogenicity,mitotip_score:mitotip_score,mitotip_trna_prediction:mitotip_trna_prediction,vep:vep,excluded_AC:excluded_AC,AN:AN,AC_hom:AC_hom,AC_het:AC_het,dp_mean:dp_mean,mq_mean:mq_mean,tlod_mean:tlod_mean,AF_hom:AF_hom,AF_het:AF_het,max_hl:max_hl,pop_AN:pop_AN,pop_AC_het:pop_AC_het,pop_AC_hom:pop_AC_hom,pop_AF_het:pop_AF_het,pop_AF_hom:pop_AF_hom]
