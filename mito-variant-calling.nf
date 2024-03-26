@@ -4,6 +4,8 @@ params.chrM_fasta = "/references/Homo_sapiens_assembly38.chrM.fasta"
 params.chrM_shift_fasta = "/references/Homo_sapiens_assembly38.chrM.shifted_by_8000_bases.fasta"
 params.shiftback_chain = "/references/ShiftBack.chain"
 params.blacklist_sites = "/references/blacklist_sites.hg38.chrM.bed"
+params.reference_gnomad = "/references/gnomad.genomes.v3.1.sites.chrM.vcf.bgz"
+params.annoc_file = "/references/varnote.annoc"
 
 
 log.info """\
@@ -376,6 +378,62 @@ process NORMALIZE_CALLS {
     """
 }
 
+process HAPLOCHECK {
+    tag "Checking for contamination in ${vcf_file}"
+    publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+
+    output:
+    tuple val(meta), path("haplocheck.tsv")
+
+    script:
+    """
+    /app/haplocheck --out haplocheck.tsv --raw ${vcf_file}
+    """
+}
+
+process HAPLOGREP {
+    tag "Inferring haplogoup in ${vcf_file}"
+    publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+
+    output:
+    tuple val(meta), path("haplogrep.tsv")
+
+    script:
+    """
+    /app/haplogrep classify --in ${vcf_file} --out haplogrep.tsv --format vcf --extend-report
+    """
+}
+
+
+
+
+process VARNOTE {
+    tag "Annotating gnomAD in ${vcf_file}"
+    publishDir params.outdir, mode: 'copy'
+
+    input:
+    tuple val(meta), path(vcf_file)
+    val (reference_gnomad)
+    val (annoc_file)
+
+    output:
+    tuple val(meta), path("annotated_gnomad.vcf")
+
+    script:
+    """
+    mkdir -p null/temp
+    java -jar /app/VarNote-1.2.0.jar Annotation -Q ${vcf_file} -D:db,tag=GnomadMitochondrial,mode=1 ${reference_gnomad} \\
+    -A ${annoc_file} -O annotated_gnomad.vcf -Z false
+    """
+}
+
+
 
 workflow {
     Channel
@@ -407,6 +465,9 @@ workflow {
     filter_mutect_ch = FILTER_MUTECT(merged_vcf_ch, merged_stats_ch, params.chrM_fasta)
     blacklisted_ch = BLACKLIST_SITES(filter_mutect_ch, params.blacklist_sites)
     normalized_ch = NORMALIZE_CALLS(blacklisted_ch, params.chrM_fasta)
+    annot_gnomad_ch = VARNOTE(normalized_ch, params.reference_gnomad, params.annoc_file)
+    haplocheck_ch = HAPLOCHECK(normalized_ch)
+    haplogrep_ch = HAPLOGREP(normalized_ch)
 
 }
 
