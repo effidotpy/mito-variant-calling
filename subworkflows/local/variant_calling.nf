@@ -1,4 +1,5 @@
 process VAR_CALLING {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam)
@@ -17,6 +18,7 @@ process VAR_CALLING {
 }
 
 process VAR_CALLING_SHIFT {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam)
@@ -35,6 +37,7 @@ process VAR_CALLING_SHIFT {
 }
 
 process LIFTOVER {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf)
@@ -53,6 +56,7 @@ process LIFTOVER {
 }
 
 process MERGE_VCFS {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf_ref)
@@ -69,6 +73,7 @@ process MERGE_VCFS {
 }
 
 process MERGE_STATS {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf_ref)
@@ -86,6 +91,7 @@ process MERGE_STATS {
 }
 
 process FILTER_MUTECT {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf)
@@ -103,6 +109,7 @@ process FILTER_MUTECT {
 }
 
 process BLACKLIST_SITES {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf)
@@ -118,6 +125,7 @@ process BLACKLIST_SITES {
 }
 
 process NORMALIZE_CALLS {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf)

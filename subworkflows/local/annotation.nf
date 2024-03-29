@@ -1,5 +1,6 @@
 
 process HAPLOCHECK {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf_file)
@@ -14,6 +15,7 @@ process HAPLOCHECK {
 }
 
 process HAPLOGREP {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf_file)
@@ -28,6 +30,7 @@ process HAPLOGREP {
 }
 
 process VARNOTE {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(vcf)

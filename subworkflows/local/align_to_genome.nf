@@ -1,6 +1,5 @@
-
-
 process ALIGN_BWA {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(fastq)
@@ -17,6 +16,7 @@ process ALIGN_BWA {
 
 
 process MERGE_BAMS {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(unaligned)
@@ -34,6 +34,7 @@ process MERGE_BAMS {
 }
 
 process SORT_BAM {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam)

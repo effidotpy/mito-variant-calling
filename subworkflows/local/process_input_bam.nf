@@ -1,5 +1,6 @@
 
 process ADD_READGROUP {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam_file)
@@ -15,6 +16,7 @@ process ADD_READGROUP {
 }
 
 process NAME_SORT {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam_file)
@@ -29,6 +31,7 @@ process NAME_SORT {
 }
 
 process FIX_PAIRING {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam_file)
@@ -45,6 +48,7 @@ process FIX_PAIRING {
 }
 
 process REMOVE_SINGLETONS {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam_file)
@@ -60,6 +64,7 @@ process REMOVE_SINGLETONS {
 
 process REVERT_BAM {
     //TODO adjust --REMOVE_DUPLICATE_INFORMATION parameter if new samples are included
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam_file)
@@ -76,6 +81,7 @@ process REVERT_BAM {
 }
 
 process BAM_TO_FASTQ {
+    container 'mapping_gatk'
 
     input:
     tuple val(meta), path(bam_file)
