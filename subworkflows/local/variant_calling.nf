@@ -6,8 +6,8 @@ process VAR_CALLING {
     val (reference_fasta)
 
     output:
-    tuple val(meta), path("mutect2_ref.vcf")
-    path("mutect2_ref.vcf.stats")
+    tuple val(meta), path("mutect2_ref.vcf")        , emit: vcf
+    tuple val(meta), path("mutect2_ref.vcf.stats")  , emit: stats
 
     script:
     """
@@ -25,8 +25,8 @@ process VAR_CALLING_SHIFT {
     val (reference_fasta)
 
     output:
-    tuple val(meta), path("mutect2_shift.vcf")
-    path("mutect2_shift.vcf.stats")
+    tuple val(meta), path("mutect2_shift.vcf")          , emit: vcf
+    tuple val(meta), path("mutect2_shift.vcf.stats")    , emit: stats
 
     script:
     """
@@ -41,7 +41,6 @@ process LIFTOVER {
 
     input:
     tuple val(meta), path(vcf)
-    path (vcf_stats)
     val (reference_fasta)
     val (shiftback_chain)
 
@@ -59,9 +58,7 @@ process MERGE_VCFS {
     container 'mapping_gatk'
 
     input:
-    tuple val(meta), path(vcf_ref)
-    path (stats_ref)
-    tuple val(meta_shift), path(vcf_shift)
+    tuple val(meta), path(vcf_ref), path(vcf_shift)
 
     output:
     tuple val(meta), path("merged.vcf")
@@ -76,10 +73,7 @@ process MERGE_STATS {
     container 'mapping_gatk'
 
     input:
-    tuple val(meta), path(vcf_ref)
-    path (stats_ref)
-    tuple val(meta_shift), path(vcf_shift)
-    path (stats_shift)
+    tuple val(meta), path (stats_ref), path (stats_shift)
 
     output:
     tuple val(meta), path("merged.vcf.stats")
@@ -94,8 +88,7 @@ process FILTER_MUTECT {
     container 'mapping_gatk'
 
     input:
-    tuple val(meta), path(vcf)
-    tuple val(meta), path(stats)
+    tuple val(meta), path(vcf), path(stats)
     val (reference_fasta)
 
     output:
@@ -155,10 +148,17 @@ workflow VARIANT_CALLING {
     main:
         ch_var_ref = VAR_CALLING(ch_bam_ref, val_genome_ref)
         ch_var_shift = VAR_CALLING_SHIFT(ch_bam_shift, val_genome_shift)
-        ch_shiftback = LIFTOVER(ch_var_shift, val_genome_ref, val_shiftback)
-        ch_vcf_merged = MERGE_VCFS(ch_var_ref, ch_shiftback)
-        ch_stats_merged = MERGE_STATS(ch_var_ref, ch_var_shift)
-        ch_filter_mutect = FILTER_MUTECT(ch_vcf_merged, ch_stats_merged, val_genome_ref)
+        ch_shiftback = LIFTOVER(ch_var_shift.vcf, val_genome_ref, val_shiftback)
+
+        ch_vcfs_to_merge = ch_var_ref.vcf.join(ch_shiftback, failOnMismatch:true)
+        ch_vcf_merged = MERGE_VCFS(ch_vcfs_to_merge)
+
+        ch_stats_to_merge = ch_var_ref.stats.join(ch_var_shift.stats, failOnMismatch:true)
+        ch_stats_merged = MERGE_STATS(ch_stats_to_merge)
+
+        ch_to_filter = ch_vcf_merged.join(ch_stats_merged, failOnMismatch:true)
+        ch_filter_mutect = FILTER_MUTECT(ch_to_filter, val_genome_ref)
+
         ch_blacklisted = BLACKLIST_SITES(ch_filter_mutect, val_blacklist)
         ch_normalized = NORMALIZE_CALLS(ch_blacklisted, val_genome_ref)
 

@@ -19,8 +19,7 @@ process MERGE_BAMS {
     container 'mapping_gatk'
 
     input:
-    tuple val(meta), path(unaligned)
-    tuple val(meta), path(aligned)
+    tuple val(meta), path(unaligned), path(aligned)
     val (reference_fasta)
 
     output:
@@ -58,7 +57,9 @@ workflow ALIGN_TO_GENOME {
 
     main:
         ch_bam = ALIGN_BWA(ch_fastq, chrM_genome)
-        ch_merged = MERGE_BAMS(ch_revert_bam, ch_bam, chrM_genome)
+        ch_to_merge = ch_revert_bam.join(ch_bam, failOnMismatch:true)
+//         ch_to_merge.view()
+        ch_merged = MERGE_BAMS(ch_to_merge, chrM_genome)
         ch_sorted = SORT_BAM(ch_merged)
 
     emit:
