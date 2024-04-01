@@ -5,6 +5,7 @@ include { ALIGN_TO_GENOME as ALIGN_TO_REF   } from '../subworkflows/local/align_
 include { ALIGN_TO_GENOME as ALIGN_TO_SHIFT } from '../subworkflows/local/align_to_genome'
 include { VARIANT_CALLING                   } from '../subworkflows/local/variant_calling'
 include { ANNOTATION                        } from '../subworkflows/local/annotation'
+include { REPORT                            } from '../subworkflows/local/report'
 
 
 workflow MITO_SNVS_INDELS {
@@ -46,6 +47,13 @@ workflow MITO_SNVS_INDELS {
             VARIANT_CALLING.out.normalized,
             val_gnomad,
             val_annoc
+        )
+
+        REPORT (
+            ANNOTATION.out.gnomad_annotated,
+            ANNOTATION.out.haplocheck,
+            ANNOTATION.out.haplogrep,
+            ALIGN_TO_REF.out.depth
         )
 
 

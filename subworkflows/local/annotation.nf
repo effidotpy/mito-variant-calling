@@ -1,31 +1,33 @@
 
 process HAPLOCHECK {
     container 'mapping_gatk'
+    publishDir "${params.outdir}/contamination", mode: 'copy'
 
     input:
     tuple val(meta), path(vcf_file)
 
     output:
-    tuple val(meta), path("haplocheck.tsv")
+    path("*.tsv")
 
     script:
     """
-    /app/haplocheck --out haplocheck.tsv --raw ${vcf_file}
+    /app/haplocheck --out ${meta.sample_id}_haplocheck.tsv --raw ${vcf_file}
     """
 }
 
 process HAPLOGREP {
     container 'mapping_gatk'
+    publishDir "${params.outdir}/haplogroup", mode: 'copy'
 
     input:
     tuple val(meta), path(vcf_file)
 
     output:
-    tuple val(meta), path("haplogrep.tsv")
+    path("*.tsv")
 
     script:
     """
-    /app/haplogrep classify --in ${vcf_file} --out haplogrep.tsv --format vcf --extend-report
+    /app/haplogrep classify --in ${vcf_file} --out ${meta.sample_id}_haplogrep.tsv --format vcf --extend-report
     """
 }
 

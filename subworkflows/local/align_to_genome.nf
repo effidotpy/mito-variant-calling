@@ -47,6 +47,21 @@ process SORT_BAM {
     """
 }
 
+process GET_DEPTH {
+    container 'mapping_gatk'
+
+    input:
+    tuple val(meta), path(bam)
+
+    output:
+    path("*.tsv")
+
+    script:
+    """
+    samtools depth -q 20 -Q 40 -H -a -J -o ${meta.sample_id}_depth.tsv ${bam}
+    """
+}
+
 
 workflow ALIGN_TO_GENOME {
 
@@ -58,10 +73,11 @@ workflow ALIGN_TO_GENOME {
     main:
         ch_bam = ALIGN_BWA(ch_fastq, chrM_genome)
         ch_to_merge = ch_revert_bam.join(ch_bam, failOnMismatch:true)
-//         ch_to_merge.view()
         ch_merged = MERGE_BAMS(ch_to_merge, chrM_genome)
         ch_sorted = SORT_BAM(ch_merged)
+        ch_depth = GET_DEPTH(ch_merged)
 
     emit:
         sorted = ch_sorted  // channel: [ val(meta), path(bam) ]
+        depth = ch_depth    // channel: [ val(meta), path(tsv) ]
 }
